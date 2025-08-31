@@ -171,6 +171,22 @@
             0% { opacity: 1; transform: scale(1); }
             100% { opacity: 0; transform: scale(2); }
         }
+        .reset-button {
+            font-family: 'Comic Sans MS', cursive, sans-serif;
+            font-size: 20px;
+            color: #fff;
+            background: linear-gradient(45deg, #ff69b4, #ffd700);
+            border: 2px solid #8b4513;
+            border-radius: 10px;
+            padding: 10px 20px;
+            cursor: pointer;
+            margin-top: 20px;
+            text-shadow: 1px 1px 2px #333;
+            transition: transform 0.3s;
+        }
+        .reset-button:hover {
+            transform: scale(1.1);
+        }
     </style>
 </head>
 <body>
@@ -195,6 +211,7 @@
             <div class="basket" id="basket4"></div>
         </div>
     </div>
+    <button class="reset-button" onclick="resetStats()">Reset Progress</button>
     <canvas id="confetti-canvas" width="300" height="300"></canvas>
     <audio id="clap" src="applause.mp3"></audio>
     <audio id="lose" src="buzzer.mp3"></audio>
@@ -244,6 +261,21 @@
             localStorage.setItem('alphabetStats', JSON.stringify(stats));
         }
 
+        function resetStats() {
+            const password = prompt('Enter password to reset progress:');
+            if (password === '4321') {
+                alphabet.forEach(letter => {
+                    stats[letter] = { presented: 0, correct: 0 };
+                });
+                saveStats();
+                updateCounts();
+                updateBaskets();
+                alert('Progress reset successfully!');
+            } else {
+                alert('Incorrect password!');
+            }
+        }
+
         function updateCounts() {
             const countsDiv = document.getElementById('counts');
             countsDiv.innerHTML = '';
@@ -291,8 +323,9 @@
         function weightedRandomLetter() {
             const weights = alphabet.map(letter => {
                 const s = stats[letter];
-                const correctRate = s.presented > 0 ? s.correct / s.presented : 1; // Unpresented as 100%
-                return correctRate; // Higher accuracy -> higher weight
+                if (s.presented === 0) return 1000; // High weight for unpresented
+                const correctRate = s.correct / s.presented;
+                return (1 - correctRate) * 10; // Scale low accuracy higher
             });
             const totalWeight = weights.reduce((sum, w) => sum + w, 0);
             let random = Math.random() * totalWeight;
@@ -414,7 +447,12 @@
                     tiltAngleIncrement: Math.random() * 0.07 + 0.05
                 });
             }
+            const startTime = Date.now();
             function draw() {
+                if (Date.now() - startTime > 1000) {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    return;
+                }
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 particles.forEach(p => {
                     p.tiltAngle += p.tiltAngleIncrement;
@@ -427,8 +465,7 @@
                     ctx.lineTo(p.x + p.tilt, p.y + p.tilt + p.r / 4);
                     ctx.stroke();
                 });
-                if (particles[0].y < canvas.height) requestAnimationFrame(draw);
-                else canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+                requestAnimationFrame(draw);
             }
             draw();
         }
