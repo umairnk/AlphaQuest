@@ -1,0 +1,420 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <title>LetterQuest: Alphabet Adventure</title>
+    <link rel="icon" type="image/png" href="favicon.png">
+    <style>
+        body {
+            font-family: 'Comic Sans MS', cursive, sans-serif;
+            background-color: #f0f8ff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .capital {
+            font-size: 150px;
+            color: #ff4500;
+            text-shadow: 2px 2px 4px #ffd700;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        .options {
+            display: flex;
+            justify-content: space-around;
+            width: 80%;
+            margin: 20px 0;
+        }
+        .option {
+            font-size: 100px;
+            color: #4b0082;
+            background-color: #fffacd;
+            border: 2px solid #ffd700;
+            border-radius: 20px;
+            padding: 20px;
+            cursor: pointer;
+            transition: transform 0.3s;
+            text-shadow: 1px 1px 2px #add8e6;
+        }
+        .option:hover {
+            transform: scale(1.1);
+        }
+        .counts {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            width: 90%;
+            font-size: 20px;
+            margin: 20px 0;
+        }
+        .count-item {
+            margin: 5px;
+            color: #228b22;
+        }
+        .baskets {
+            display: flex;
+            justify-content: space-around;
+            width: 90%;
+            margin: 20px 0;
+        }
+        .basket-container {
+            width: 22%;
+            text-align: center;
+        }
+        .basket-label {
+            font-size: 18px;
+            color: #fff;
+            background: linear-gradient(45deg, #ff69b4, #ffd700);
+            padding: 5px 10px;
+            border-radius: 10px;
+            margin-bottom: 5px;
+            text-shadow: 1px 1px 2px #333;
+        }
+        .basket {
+            width: 100%;
+            height: 250px;
+            border: 4px solid #8b4513;
+            border-radius: 15px;
+            background: linear-gradient(
+                45deg,
+                #deb887 25%,
+                #d2b48c 25%,
+                #d2b48c 50%,
+                #deb887 50%,
+                #deb887 75%,
+                #d2b48c 75%,
+                #d2b48c
+            );
+            background-size: 20px 20px;
+            padding: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            align-content: flex-start;
+            overflow-y: auto;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        .basket-letter {
+            font-size: 30px;
+            color: #ff69b4;
+            margin: 5px;
+            text-shadow: 1px 1px 2px #fff;
+            animation: bounce 2s infinite;
+        }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+        #confetti-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+        .red-cross {
+            position: fixed;
+            font-size: 100px;
+            color: red;
+            animation: fadeOut 1s;
+            pointer-events: none;
+        }
+        @keyframes fadeOut {
+            0% { opacity: 1; transform: scale(1); }
+            100% { opacity: 0; transform: scale(2); }
+        }
+    </style>
+</head>
+<body>
+    <div id="capital" class="capital"></div>
+    <div id="options" class="options"></div>
+    <div id="counts" class="counts"></div>
+    <div id="baskets" class="baskets">
+        <div class="basket-container">
+            <div class="basket-label">Needs Practice</div>
+            <div class="basket" id="basket1"></div>
+        </div>
+        <div class="basket-container">
+            <div class="basket-label">Getting Better</div>
+            <div class="basket" id="basket2"></div>
+        </div>
+        <div class="basket-container">
+            <div class="basket-label">Almost There</div>
+            <div class="basket" id="basket3"></div>
+        </div>
+        <div class="basket-container">
+            <div class="basket-label">Mastered!</div>
+            <div class="basket" id="basket4"></div>
+        </div>
+    </div>
+    <canvas id="confetti-canvas" width="300" height="300"></canvas>
+    <audio id="clap" src="applause.mp3"></audio>
+    <audio id="lose" src="buzzer.mp3"></audio>
+
+    <script>
+        const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+        const smallLetters = 'abcdefghijklmnopqrstuvwxyz'.split('');
+        const confusers = {
+            A: ['o', 'c', 'e', 'q'],
+            B: ['d', 'p', 'q', 'o'],
+            C: ['o', 'g', 'q', 'e'],
+            D: ['b', 'p', 'q', 'o'],
+            E: ['c', 'o', 'a', 'q'],
+            F: ['t', 'i', 'l', 'j'],
+            G: ['q', 'p', 'y', 'o'],
+            H: ['n', 'm', 'u', 'b'],
+            I: ['l', 'j', 't', 'f'],
+            J: ['i', 'l', 'g', 'y'],
+            K: ['x', 'h', 'l', 'y'],
+            L: ['i', 'j', 't', 'f'],
+            M: ['n', 'u', 'w', 'v'],
+            N: ['m', 'h', 'u', 'r'],
+            O: ['c', 'e', 'a', 'q'],
+            P: ['q', 'b', 'd', 'o'],
+            Q: ['p', 'g', 'o', 'd'],
+            R: ['n', 'h', 'm', 'b'],
+            S: ['z', 'c', 'o', 'e'],
+            T: ['f', 'i', 'l', 'j'],
+            U: ['n', 'm', 'h', 'v'],
+            V: ['w', 'u', 'y', 'x'],
+            W: ['v', 'm', 'u', 'n'],
+            X: ['k', 'y', 'z', 'v'],
+            Y: ['v', 'g', 'j', 'u'],
+            Z: ['s', 'n', 'm', 'x']
+        };
+
+        let stats = JSON.parse(localStorage.getItem('alphabetStats')) || {};
+        alphabet.forEach(letter => {
+            if (!stats[letter]) {
+                stats[letter] = { presented: 0, correct: 0 };
+            }
+        });
+
+        let currentCapital, currentCorrect, currentOptions;
+
+        function saveStats() {
+            localStorage.setItem('alphabetStats', JSON.stringify(stats));
+        }
+
+        function updateCounts() {
+            const countsDiv = document.getElementById('counts');
+            countsDiv.innerHTML = '';
+            alphabet.forEach(letter => {
+                const count = stats[letter].presented;
+                const item = document.createElement('div');
+                item.className = 'count-item';
+                item.innerHTML = `${letter}<sub>${count}</sub>`;
+                countsDiv.appendChild(item);
+            });
+        }
+
+        function updateBaskets() {
+            const baskets = [
+                document.getElementById('basket1'),
+                document.getElementById('basket2'),
+                document.getElementById('basket3'),
+                document.getElementById('basket4')
+            ];
+            baskets.forEach(b => b.innerHTML = '');
+            alphabet.forEach(letter => {
+                const s = stats[letter];
+                if (s.presented > 0) {
+                    const percent = (s.correct / s.presented) * 100;
+                    let basketIndex;
+                    if (percent <= 10) basketIndex = 0;
+                    else if (percent <= 50) basketIndex = 1;
+                    else if (percent <= 90) basketIndex = 2;
+                    else basketIndex = 3;
+                    const item = document.createElement('div');
+                    item.className = 'basket-letter';
+                    item.textContent = letter;
+                    baskets[basketIndex].appendChild(item);
+                }
+            });
+        }
+
+        function weightedRandomLetter() {
+            const weights = alphabet.map(letter => {
+                const s = stats[letter];
+                const correctRate = s.presented > 0 ? s.correct / s.presented : 0;
+                return 1 - correctRate; // Lower accuracy -> higher weight
+            });
+            const totalWeight = weights.reduce((sum, w) => sum + w, 0);
+            let random = Math.random() * totalWeight;
+            for (let i = 0; i < weights.length; i++) {
+                random -= weights[i];
+                if (random <= 0) return alphabet[i];
+            }
+            return alphabet[alphabet.length - 1]; // Fallback
+        }
+
+        function generateQuestion() {
+            currentCapital = weightedRandomLetter();
+            const index = alphabet.indexOf(currentCapital);
+            currentCorrect = smallLetters[index];
+            stats[currentCapital].presented++;
+            saveStats();
+            updateCounts();
+            updateBaskets();
+
+            document.getElementById('capital').textContent = currentCapital;
+
+            let wrongs = confusers[currentCapital].slice();
+            if (wrongs.length > 3) {
+                wrongs = wrongs.sort(() => 0.5 - Math.random()).slice(0, 3);
+            } else if (wrongs.length < 3) {
+                let allSmall = smallLetters.filter(l => l !== currentCorrect && !wrongs.includes(l));
+                while (wrongs.length < 3) {
+                    const rand = allSmall.splice(Math.floor(Math.random() * allSmall.length), 1)[0];
+                    wrongs.push(rand);
+                }
+            }
+            currentOptions = [currentCorrect, ...wrongs].sort(() => 0.5 - Math.random());
+
+            const optionsDiv = document.getElementById('options');
+            optionsDiv.innerHTML = '';
+            currentOptions.forEach(opt => {
+                const div = document.createElement('div');
+                div.className = 'option';
+                div.textContent = opt;
+                div.onclick = () => handleClick(div, opt);
+                optionsDiv.appendChild(div);
+            });
+        }
+
+        function handleClick(element, selected) {
+            if (selected !== currentCorrect) {
+                playLose();
+                showRedCross(element);
+                element.remove();
+            } else {
+                const visible = document.querySelectorAll('.option').length;
+                if (visible > 1) {
+                    stats[currentCapital].correct++;
+                    saveStats();
+                    celebrate();
+                    setTimeout(generateQuestion, 2000);
+                } else {
+                    generateQuestion();
+                }
+                updateBaskets();
+            }
+        }
+
+        function playClap() {
+            const clap = document.getElementById('clap');
+            clap.play().catch(e => console.log('Audio play failed:', e));
+        }
+
+        function playLose() {
+            const lose = document.getElementById('lose');
+            lose.play().catch(e => console.log('Audio play failed:', e));
+        }
+
+        function showRedCross(element) {
+            const cross = document.createElement('div');
+            cross.className = 'red-cross';
+            cross.textContent = '✖';
+            const rect = element.getBoundingClientRect();
+            cross.style.left = `${rect.left + rect.width / 2 - 50}px`;
+            cross.style.top = `${rect.top + rect.height / 2 - 50}px`;
+            document.body.appendChild(cross);
+            setTimeout(() => cross.remove(), 1000);
+        }
+
+        function celebrate() {
+            playClap();
+            confetti();
+        }
+
+        function confetti() {
+            const canvas = document.getElementById('confetti-canvas');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            const ctx = canvas.getContext('2d');
+            const particles = [];
+            for (let i = 0; i < 100; i++) {
+                particles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height - canvas.height,
+                    r: Math.random() * 4 + 1,
+                    d: Math.random() * 100,
+                    color: `hsl(${Math.random() * 360}, 100%, 50%)`,
+                    tilt: Math.random() * 10 - 10,
+                    tiltAngle: 0,
+                    tiltAngleIncrement: Math.random() * 0.07 + 0.05
+                });
+            }
+            function draw() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                particles.forEach(p => {
+                    p.tiltAngle += p.tiltAngleIncrement;
+                    p.y += (Math.cos(p.d) + 3 + p.r / 2) / 2;
+                    p.tilt = Math.sin(p.tiltAngle) * 15;
+                    ctx.beginPath();
+                    ctx.lineWidth = p.r;
+                    ctx.strokeStyle = p.color;
+                    ctx.moveTo(p.x + p.tilt + p.r / 4, p.y);
+                    ctx.lineTo(p.x + p.tilt, p.y + p.tilt + p.r / 4);
+                    ctx.stroke();
+                });
+                if (particles[0].y < canvas.height) requestAnimationFrame(draw);
+                else canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+            }
+            draw();
+        }
+
+        updateCounts();
+        updateBaskets();
+        generateQuestion();
+    </script>
+</body>
+</html>
