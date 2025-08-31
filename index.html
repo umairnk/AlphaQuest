@@ -238,7 +238,7 @@
             }
         });
 
-        let currentCapital, currentCorrect, currentOptions;
+        let currentCapital, currentCorrect, currentOptions, wrongChoiceMade;
 
         function saveStats() {
             localStorage.setItem('alphabetStats', JSON.stringify(stats));
@@ -264,28 +264,35 @@
                 document.getElementById('basket4')
             ];
             baskets.forEach(b => b.innerHTML = '');
+            const basketLetters = [[], [], [], []];
             alphabet.forEach(letter => {
                 const s = stats[letter];
                 if (s.presented > 0) {
-                    const percent = (s.correct / s.presented) * 100;
+                    const percent = Math.round((s.correct / s.presented) * 100);
                     let basketIndex;
                     if (percent <= 10) basketIndex = 0;
                     else if (percent <= 50) basketIndex = 1;
                     else if (percent <= 90) basketIndex = 2;
                     else basketIndex = 3;
+                    basketLetters[basketIndex].push({ letter, percent });
+                }
+            });
+            basketLetters.forEach((letters, index) => {
+                letters.sort((a, b) => a.percent - b.percent); // Sort ascending by percent
+                letters.forEach(({ letter, percent }) => {
                     const item = document.createElement('div');
                     item.className = 'basket-letter';
-                    item.textContent = letter;
-                    baskets[basketIndex].appendChild(item);
-                }
+                    item.innerHTML = `${letter}<sub>${percent}</sub>`;
+                    baskets[index].appendChild(item);
+                });
             });
         }
 
         function weightedRandomLetter() {
             const weights = alphabet.map(letter => {
                 const s = stats[letter];
-                const correctRate = s.presented > 0 ? s.correct / s.presented : 0;
-                return 1 - correctRate; // Lower accuracy -> higher weight
+                const correctRate = s.presented > 0 ? s.correct / s.presented : 1; // Unpresented as 100%
+                return correctRate; // Higher accuracy -> higher weight
             });
             const totalWeight = weights.reduce((sum, w) => sum + w, 0);
             let random = Math.random() * totalWeight;
@@ -300,6 +307,7 @@
             currentCapital = weightedRandomLetter();
             const index = alphabet.indexOf(currentCapital);
             currentCorrect = smallLetters[index];
+            wrongChoiceMade = false; // Reset for new round
             stats[currentCapital].presented++;
             saveStats();
             updateCounts();
@@ -332,20 +340,33 @@
 
         function handleClick(element, selected) {
             if (selected !== currentCorrect) {
+                wrongChoiceMade = true; // Mark the round as failed
                 playLose();
                 showRedCross(element);
                 element.remove();
+                updateBaskets(); // Update immediately after incorrect
+                if (document.querySelectorAll('.option').length === 1) {
+                    // Last option remains; end round without incrementing correct
+                    setTimeout(generateQuestion, 1000);
+                }
             } else {
                 const visible = document.querySelectorAll('.option').length;
                 if (visible > 1) {
-                    stats[currentCapital].correct++;
+                    if (!wrongChoiceMade) {
+                        stats[currentCapital].correct++; // Only increment if no wrong choices
+                    }
                     saveStats();
                     celebrate();
+                    updateBaskets(); // Update immediately after correct
                     setTimeout(generateQuestion, 2000);
                 } else {
+                    if (!wrongChoiceMade) {
+                        stats[currentCapital].correct++; // Only increment if no wrong choices
+                    }
+                    saveStats();
+                    updateBaskets(); // Update immediately after correct
                     generateQuestion();
                 }
-                updateBaskets();
             }
         }
 
