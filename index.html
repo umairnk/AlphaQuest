@@ -1,598 +1,271 @@
-<script type="text/javascript">
-        var gk_isXlsx = false;
-        var gk_xlsxFileLookup = {};
-        var gk_fileData = {};
-        function filledCell(cell) {
-          return cell !== '' && cell != null;
-        }
-        function loadFileData(filename) {
-        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
-            try {
-                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
-                var firstSheetName = workbook.SheetNames[0];
-                var worksheet = workbook.Sheets[firstSheetName];
-
-                // Convert sheet to JSON to filter blank rows
-                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
-                // Filter out blank rows (rows where all cells are empty, null, or undefined)
-                var filteredData = jsonData.filter(row => row.some(filledCell));
-
-                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
-                var headerRowIndex = filteredData.findIndex((row, index) =>
-                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
-                );
-                // Fallback
-                if (headerRowIndex === -1 || headerRowIndex > 25) {
-                  headerRowIndex = 0;
-                }
-
-                // Convert filtered JSON back to CSV
-                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
-                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
-                return csv;
-            } catch (e) {
-                console.error(e);
-                return "";
-            }
-        }
-        return gk_fileData[filename] || "";
-        }
-        </script><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black">
-    <meta name="apple-mobile-web-app-title" content="AlphaQuest">
-    <title>AlphaQuest</title>
-    <link rel="icon" type="image/png" sizes="64x64" href="/favicon-64x64.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-180x180.png">
-    <link rel="apple-touch-icon" sizes="152x152" href="/apple-touch-icon-152x152.png">
-    <link rel="apple-touch-icon" sizes="120x120" href="/apple-touch-icon-120x120.png">
-    <link rel="manifest" href="/manifest.json">
-    <link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@400;700&display=swap" rel="stylesheet">
-    <style>
-        body {
-            font-family: 'Comic Neue', Verdana, Arial, Helvetica, sans-serif;
-            font-style: normal;
-            font-weight: 400;
-            background-color: #f0f8ff;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            padding: 20px;
-            box-sizing: border-box;
-            position: relative;
-        }
-        .capital {
-            font-family: 'Comic Neue', Verdana, Arial, Helvetica, sans-serif;
-            font-style: normal;
-            font-weight: 400;
-            font-size: 150px;
-            color: #ff4500;
-            text-shadow: 2px 2px 4px #ffd700;
-            animation: pulse 1s infinite;
-        }
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-            100% { transform: scale(1); }
-        }
-        .options {
-            display: flex;
-            justify-content: space-around;
-            width: 80%;
-            margin: 20px 0;
-        }
-        .option {
-            font-family: 'Comic Neue', Verdana, Arial, Helvetica, sans-serif;
-            font-style: normal;
-            font-weight: 400;
-            font-size: 100px;
-            color: #4b0082;
-            background-color: #fffacd;
-            border: 2px solid #ffd700;
-            border-radius: 20px;
-            padding: 20px;
-            cursor: pointer;
-            transition: transform 0.3s;
-            text-shadow: 1px 1px 2px #add8e6;
-            position: relative;
-        }
-        .option:hover {
-            transform: scale(1.1);
-        }
-        .counts, .percent-row {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            width: 90%;
-            font-family: 'Comic Neue', Verdana, Arial, Helvetica, sans-serif;
-            font-style: normal;
-            font-weight: 700;
-            font-size: 20px;
-            margin: 10px 0;
-            color: #228b22;
-        }
-        .count-item, .percent-item {
-            font-family: 'Comic Neue', Verdana, Arial, Helvetica, sans-serif;
-            font-style: normal;
-            font-weight: 700;
-            margin: 5px;
-        }
-        .count-item sub, .percent-item sub {
-            font-family: 'Comic Neue', Verdana, Arial, Helvetica, sans-serif;
-            font-style: normal !important;
-            font-weight: 700;
-            font-size: 14px;
-            vertical-align: sub;
-        }
-        .baskets {
-            display: flex;
-            justify-content: space-around;
-            width: 90%;
-            margin: 20px 0;
-        }
-        .basket-container {
-            width: 22%;
-            text-align: center;
-        }
-        .basket-label {
-            font-family: 'Comic Neue', Verdana, Arial, Helvetica, sans-serif;
-            font-style: normal;
-            font-weight: 700;
-            font-size: 18px;
-            color: #fff;
-            background: linear-gradient(45deg, #ff69b4, #ffd700);
-            padding: 5px 10px;
-            border-radius: 10px;
-            margin-bottom: 5px;
-            text-shadow: 1px 1px 2px #333;
-        }
-        .basket {
-            width: 100%;
-            height: 250px;
-            border: 4px solid #8b4513;
-            border-radius: 15px;
-            background: linear-gradient(
-                45deg,
-                #deb887 25%,
-                #d2b48c 25%,
-                #d2b48c 50%,
-                #deb887 50%,
-                #deb887 75%,
-                #d2b48c 75%,
-                #d2b48c
-            );
-            background-size: 20px 20px;
-            padding: 10px;
-            display: flex;
-            flex-wrap: wrap;
-            align-content: flex-start;
-            overflow-y: auto;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-        }
-        .basket-letter {
-            font-family: 'Comic Neue', Verdana, Arial, Helvetica, sans-serif;
-            font-style: normal;
-            font-weight: 400;
-            font-size: 30px;
-            color: #ff69b4;
-            margin: 5px;
-            text-shadow: 1px 1px 2px #fff;
-            animation: bounce 2s infinite;
-        }
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-5px); }
-        }
-        #confetti-canvas {
-            position: fixed;
-            top: 0;
-            left: 0;
-            pointer-events: none;
-        }
-        .red-cross {
-            font-family: 'Comic Neue', Verdana, Arial, Helvetica, sans-serif;
-            font-style: normal;
-            font-weight: 400;
-            font-size: 100px;
-            color: red;
-            position: absolute;
-            left: 50%;
-            top: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 1000;
-            animation: fadeOut 2s;
-            pointer-events: none;
-        }
-        @keyframes fadeOut {
-            0% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-            100% { opacity: 0; transform: translate(-50%, -50%) scale(2); }
-        }
-        .reset-button {
-            font-family: 'Comic Neue', Verdana, Arial, Helvetica, sans-serif;
-            font-style: normal;
-            font-weight: 400;
-            font-size: 20px;
-            color: #fff;
-            background: linear-gradient(45deg, #ff69b4, #ffd700);
-            border: 2px solid #8b4513;
-            border-radius: 10px;
-            padding: 10px 20px;
-            cursor: pointer;
-            margin-top: 20px;
-            text-shadow: 1px 1px 2px #333;
-            transition: transform 0.3s;
-        }
-        .reset-button:hover {
-            transform: scale(1.1);
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="AlphaQuest">
+  <title>AlphaQuest</title>
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="favicon.png">
+  <link rel="apple-touch-icon" sizes="152x152" href="favicon.png">
+  <link rel="apple-touch-icon" sizes="120x120" href="favicon.png">
+  <style>
+    body {
+      font-family: 'Comic Neue', Verdana, Arial, Helvetica, sans-serif;
+      background-color: #f0f8ff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+      box-sizing: border-box;
+      position: relative;
+    }
+    .capital {
+      font-size: 150px;
+      color: #ff4500;
+      text-shadow: 2px 2px 4px #ffd700;
+      animation: pulse 1s infinite;
+    }
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); }
+    }
+    .options {
+      display: flex;
+      justify-content: space-around;
+      width: 80%;
+      margin: 20px 0;
+    }
+    .option {
+      font-size: 100px;
+      color: #4b0082;
+      background-color: #fffacd;
+      border: 2px solid #ffd700;
+      border-radius: 20px;
+      padding: 20px;
+      cursor: pointer;
+      transition: transform 0.3s;
+      text-shadow: 1px 1px 2px #add8e6;
+    }
+    .option:hover { transform: scale(1.1); }
+    .counts, .percent-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      width: 90%;
+      font-weight: 700;
+      font-size: 20px;
+      margin: 10px 0;
+      color: #228b22;
+    }
+    .count-item, .percent-item { margin: 5px; }
+    .baskets {
+      display: flex;
+      justify-content: space-around;
+      width: 90%;
+      margin: 20px 0;
+    }
+    .basket-container { width: 22%; text-align: center; }
+    .basket-label {
+      font-weight: 700;
+      font-size: 18px;
+      color: #fff;
+      background: linear-gradient(45deg, #ff69b4, #ffd700);
+      padding: 5px 10px;
+      border-radius: 10px;
+      margin-bottom: 5px;
+      text-shadow: 1px 1px 2px #333;
+    }
+    .basket {
+      width: 100%;
+      height: 250px;
+      border: 4px solid #8b4513;
+      border-radius: 15px;
+      background: linear-gradient(45deg, #deb887 25%, #d2b48c 25%, #d2b48c 50%, #deb887 50%, #deb887 75%, #d2b48c 75%, #d2b48c);
+      background-size: 20px 20px;
+      padding: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      align-content: flex-start;
+      overflow-y: auto;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+    .basket-letter {
+      font-size: 30px;
+      color: #ff69b4;
+      margin: 5px;
+      text-shadow: 1px 1px 2px #fff;
+      animation: bounce 2s infinite;
+    }
+    @keyframes bounce {
+      0%,100% { transform: translateY(0); }
+      50% { transform: translateY(-5px); }
+    }
+    #confetti-canvas {
+      position: fixed;
+      top: 0; left: 0;
+      pointer-events: none;
+    }
+    .red-cross {
+      position: fixed;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 100px;
+      color: red;
+      z-index: 2000;
+      animation: fadeOut 1s forwards;
+      pointer-events: none;
+    }
+    @keyframes fadeOut {
+      0% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+      100% { opacity: 0; transform: translate(-50%, -50%) scale(2); }
+    }
+    .reset-button {
+      font-size: 20px;
+      color: #fff;
+      background: linear-gradient(45deg, #ff69b4, #ffd700);
+      border: 2px solid #8b4513;
+      border-radius: 10px;
+      padding: 10px 20px;
+      cursor: pointer;
+      margin-top: 20px;
+      text-shadow: 1px 1px 2px #333;
+      transition: transform 0.3s;
+    }
+    .reset-button:hover { transform: scale(1.1); }
+  </style>
 </head>
 <body>
-    <div id="capital" class="capital"></div>
-    <div id="options" class="options"></div>
-    <div id="counts" class="counts"></div>
-    <div id="percent-row" class="percent-row"></div>
-    <div id="baskets" class="baskets">
-        <div class="basket-container">
-            <div class="basket-label">Needs Practice</div>
-            <div class="basket" id="basket1"></div>
-        </div>
-        <div class="basket-container">
-            <div class="basket-label">Getting Better</div>
-            <div class="basket" id="basket2"></div>
-        </div>
-        <div class="basket-container">
-            <div class="basket-label">Almost There</div>
-            <div class="basket" id="basket3"></div>
-        </div>
-        <div class="basket-container">
-            <div class="basket-label">Mastered!</div>
-            <div class="basket" id="basket4"></div>
-        </div>
-    </div>
-    <button class="reset-button" onclick="resetStats()">Reset Progress</button>
-    <canvas id="confetti-canvas" width="300" height="300"></canvas>
-    <audio id="clap" src="https://umairnk.github.io/AlphaQuest/applause.mp3?v=1" preload="auto"></audio>
-    <audio id="lose" src="https://umairnk.github.io/AlphaQuest/buzzer.mp3?v=1" preload="auto"></audio>
+  <div id="capital" class="capital"></div>
+  <div id="options" class="options"></div>
+  <div id="counts" class="counts"></div>
+  <div id="percent-row" class="percent-row"></div>
+  <div id="baskets" class="baskets">
+    <div class="basket-container"><div class="basket-label">Needs Practice</div><div class="basket" id="basket1"></div></div>
+    <div class="basket-container"><div class="basket-label">Getting Better</div><div class="basket" id="basket2"></div></div>
+    <div class="basket-container"><div class="basket-label">Almost There</div><div class="basket" id="basket3"></div></div>
+    <div class="basket-container"><div class="basket-label">Mastered!</div><div class="basket" id="basket4"></div></div>
+  </div>
+  <button class="reset-button" onclick="resetStats()">Reset Progress</button>
+  <canvas id="confetti-canvas"></canvas>
 
-    <script>
-        // Check audio file accessibility on page load
-        const audioFiles = [
-            'https://umairnk.github.io/AlphaQuest/applause.mp3?v=1',
-            'https://umairnk.github.io/AlphaQuest/buzzer.mp3?v=1'
-        ];
-        audioFiles.forEach(file => {
-            fetch(file, { method: 'HEAD' })
-                .then(response => {
-                    if (response.ok) {
-                        console.log(`Audio file accessible: ${file}`);
-                    } else {
-                        console.error(`Audio file inaccessible: ${file}, Status: ${response.status}`);
-                    }
-                })
-                .catch(e => console.error(`Error checking audio file ${file}:`, e.message));
-        });
+  <!-- Audio with MP3 + M4A fallback -->
+  <audio id="clap" preload="auto">
+    <source src="applause.m4a" type="audio/mp4">
+    <source src="applause.mp3" type="audio/mpeg">
+  </audio>
+  <audio id="lose" preload="auto">
+    <source src="buzzer.m4a" type="audio/mp4">
+    <source src="buzzer.mp3" type="audio/mpeg">
+  </audio>
 
-        const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
-        const smallLetters = 'abcdefghijklmnopqrstuvwxyz'.split('');
-        const confusers = {
-            A: ['o', 'c', 'e', 'q'],
-            B: ['d', 'p', 'q', 'o'],
-            C: ['o', 'g', 'q', 'e'],
-            D: ['b', 'p', 'q', 'o'],
-            E: ['c', 'o', 'a', 'q'],
-            F: ['t', 'i', 'l', 'j'],
-            G: ['q', 'p', 'y', 'o'],
-            H: ['n', 'm', 'u', 'b'],
-            I: ['l', 'j', 't', 'f'],
-            J: ['i', 'l', 'g', 'y'],
-            K: ['x', 'h', 'l', 'y'],
-            L: ['i', 'j', 't', 'f'],
-            M: ['n', 'u', 'w', 'v'],
-            N: ['m', 'h', 'u', 'r'],
-            O: ['c', 'e', 'a', 'q'],
-            P: ['q', 'b', 'd', 'o'],
-            Q: ['p', 'g', 'o', 'd'],
-            R: ['n', 'h', 'm', 'b'],
-            S: ['z', 'c', 'o', 'e'],
-            T: ['f', 'i', 'l', 'j'],
-            U: ['n', 'm', 'h', 'v'],
-            V: ['w', 'u', 'y', 'x'],
-            W: ['v', 'm', 'u', 'n'],
-            X: ['k', 'y', 'z', 'v'],
-            Y: ['v', 'g', 'j', 'u'],
-            Z: ['s', 'n', 'm', 'x']
-        };
+  <script>
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+    const smallLetters = 'abcdefghijklmnopqrstuvwxyz'.split('');
+    const confusers = {A:['o','c','e','q'],B:['d','p','q','o'],C:['o','g','q','e'],D:['b','p','q','o'],E:['c','o','a','q'],F:['t','i','l','j'],G:['q','p','y','o'],H:['n','m','u','b'],I:['l','j','t','f'],J:['i','l','g','y'],K:['x','h','l','y'],L:['i','j','t','f'],M:['n','u','w','v'],N:['m','h','u','r'],O:['c','e','a','q'],P:['q','b','d','o'],Q:['p','g','o','d'],R:['n','h','m','b'],S:['z','c','o','e'],T:['f','i','l','j'],U:['n','m','h','v'],V:['w','u','y','x'],W:['v','m','u','n'],X:['k','y','z','v'],Y:['v','g','j','u'],Z:['s','n','m','x']};
 
-        let stats = JSON.parse(localStorage.getItem('alphabetStats')) || {};
-        alphabet.forEach(letter => {
-            if (!stats[letter]) {
-                stats[letter] = { presented: 0, correct: 0 };
-            }
-        });
+    let stats = JSON.parse(localStorage.getItem('alphabetStats')) || {};
+    alphabet.forEach(l=>{ if(!stats[l]) stats[l]={presented:0,correct:0}; });
+    let currentCapital,currentCorrect,wrongChoiceMade,hasUpdatedStats;
 
-        let currentCapital, currentCorrect, currentOptions, wrongChoiceMade, hasUpdatedStats;
+    const clapAudio=document.getElementById('clap');
+    const loseAudio=document.getElementById('lose');
 
-        // Preload audio files
-        const clapAudio = document.getElementById('clap');
-        const loseAudio = document.getElementById('lose');
+    // Unlock iOS audio on first tap
+    function initAudio() {
+      [clapAudio, loseAudio].forEach(a=>{
+        a.play().then(()=>a.pause()).catch(()=>{});
+      });
+    }
+    document.body.addEventListener('touchstart', initAudio, { once:true });
+    document.body.addEventListener('click', initAudio, { once:true });
 
-        function saveStats() {
-            localStorage.setItem('alphabetStats', JSON.stringify(stats));
+    function saveStats(){ localStorage.setItem('alphabetStats', JSON.stringify(stats)); }
+    function resetStats(){
+      if(prompt('Enter password to reset progress:')==='4321'){
+        alphabet.forEach(l=>stats[l]={presented:0,correct:0});
+        saveStats(); updateCounts(); updateBaskets(); alert('Progress reset!');
+      } else alert('Incorrect password!');
+    }
+    function updateCounts(){
+      const counts=document.getElementById('counts'); const perc=document.getElementById('percent-row');
+      counts.innerHTML=''; perc.innerHTML='';
+      alphabet.forEach(l=>{
+        const s=stats[l]; const c=s.presented; const p=c>0?Math.round((s.correct/c)*100):0;
+        counts.innerHTML+=`<div class="count-item">${l}<sub>${c}</sub></div>`;
+        perc.innerHTML+=`<div class="percent-item">${l}<sub>${p}</sub></div>`;
+      });
+    }
+    function updateBaskets(){
+      const baskets=[basket1,basket2,basket3,basket4]; baskets.forEach(b=>b.innerHTML='');
+      alphabet.forEach(l=>{
+        const s=stats[l]; if(s.presented>0){
+          const p=Math.round((s.correct/s.presented)*100);
+          let i= (p<=20)?0:(p<=50)?1:(p<=85)?2:3;
+          const d=document.createElement('div'); d.className='basket-letter'; d.textContent=l; baskets[i].appendChild(d);
         }
+      });
+    }
+    function weightedRandomLetter(){
+      const min=Math.min(...alphabet.map(l=>stats[l].presented));
+      if(min<3){ const c=alphabet.filter(l=>stats[l].presented===min); return c[Math.floor(Math.random()*c.length)]; }
+      const probs=[.3,.3,.25,.05],b=[[],[],[],[]];
+      alphabet.forEach(l=>{
+        const s=stats[l]; const p=s.presented>0?Math.round((s.correct/s.presented)*100):0;
+        if(p<=20)b[0].push(l); else if(p<=50)b[1].push(l); else if(p<=85)b[2].push(l); else b[3].push(l);
+      });
+      let r=Math.random(),c=0,i; for(i=0;i<probs.length;i++){ c+=probs[i]; if(r<c&&b[i].length){return b[i][Math.floor(Math.random()*b[i].length)];}}
+      return alphabet[Math.floor(Math.random()*alphabet.length)];
+    }
+    function generateQuestion(){
+      currentCapital=weightedRandomLetter(); currentCorrect=smallLetters[alphabet.indexOf(currentCapital)];
+      wrongChoiceMade=false; hasUpdatedStats=false;
+      capital.textContent=currentCapital; options.innerHTML='';
+      let wrongs=confusers[currentCapital].slice();
+      while(wrongs.length<3){ const pool=smallLetters.filter(l=>l!==currentCorrect&&!wrongs.includes(l)); wrongs.push(pool[Math.floor(Math.random()*pool.length)]);}
+      currentOptions=[currentCorrect,...wrongs.slice(0,3)].sort(()=>0.5-Math.random());
+      currentOptions.forEach(opt=>{
+        const d=document.createElement('div'); d.className='option'; d.textContent=opt;
+        d.onclick=()=>handleClick(d,opt); options.appendChild(d);
+      });
+      updateCounts(); updateBaskets();
+    }
+    function handleClick(el,sel){
+      if(sel!==currentCorrect){
+        if(!hasUpdatedStats){ wrongChoiceMade=true; stats[currentCapital].presented++; hasUpdatedStats=true; saveStats(); updateCounts(); updateBaskets(); }
+        playLose(); showRedCross(); el.remove(); if(document.querySelectorAll('.option').length===0) setTimeout(generateQuestion,1000);
+      } else {
+        if(!hasUpdatedStats){ stats[currentCapital].presented++; if(!wrongChoiceMade) stats[currentCapital].correct++; hasUpdatedStats=true; saveStats(); updateCounts(); updateBaskets();}
+        celebrate(el); setTimeout(generateQuestion,1000);
+      }
+    }
+    function playClap(){ clapAudio.currentTime=0; clapAudio.play().catch(()=>{}); }
+    function playLose(){ loseAudio.currentTime=0; loseAudio.play().catch(()=>{}); }
+    function showRedCross(){ const c=document.createElement('div'); c.className='red-cross'; c.textContent='✖'; document.body.appendChild(c); setTimeout(()=>c.remove(),1000); }
+    function celebrate(el){ playClap(); confetti(el); }
+    function confetti(el){
+      const canvas=document.getElementById('confetti-canvas'); canvas.width=innerWidth; canvas.height=innerHeight;
+      const ctx=canvas.getContext('2d'); const rect=el.getBoundingClientRect();
+      const cx=rect.left+rect.width/2, cy=rect.top+rect.height/2, parts=[];
+      for(let i=0;i<100;i++){ const a=Math.random()*2*Math.PI,s=Math.random()*5+2;
+        parts.push({x:cx,y:cy,vx:Math.cos(a)*s,vy:Math.sin(a)*s,r:Math.random()*4+1,color:`hsl(${Math.random()*360},100%,50%)`,tiltAngle:0,tiltAngleInc:Math.random()*0.07+0.05});}
+      const start=Date.now(); (function draw(){
+        if(Date.now()-start>1000){ctx.clearRect(0,0,canvas.width,canvas.height);return;}
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        parts.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=0.1;p.tiltAngle+=p.tiltAngleInc;
+          ctx.beginPath(); ctx.lineWidth=p.r; ctx.strokeStyle=p.color;
+          ctx.moveTo(p.x+p.r/4, p.y); ctx.lineTo(p.x, p.y+p.r/4); ctx.stroke();});
+        requestAnimationFrame(draw);
+      })();
+    }
 
-        function resetStats() {
-            const password = prompt('Enter password to reset progress:');
-            if (password === '4321') {
-                alphabet.forEach(letter => {
-                    stats[letter] = { presented: 0, correct: 0 };
-                });
-                saveStats();
-                updateCounts();
-                updateBaskets();
-                alert('Progress reset successfully!');
-            } else {
-                alert('Incorrect password!');
-            }
-        }
-
-        function updateCounts() {
-            const countsDiv = document.getElementById('counts');
-            const percentDiv = document.getElementById('percent-row');
-            countsDiv.innerHTML = '';
-            percentDiv.innerHTML = '';
-            alphabet.forEach(letter => {
-                const s = stats[letter];
-                const count = s.presented;
-                const percent = s.presented > 0 ? Math.round((s.correct / s.presented) * 100) : 0;
-                const countItem = document.createElement('div');
-                countItem.className = 'count-item';
-                countItem.innerHTML = `${letter}<sub>${count}</sub>`;
-                countsDiv.appendChild(countItem);
-                const percentItem = document.createElement('div');
-                percentItem.className = 'percent-item';
-                percentItem.innerHTML = `${letter}<sub>${percent}</sub>`;
-                percentDiv.appendChild(percentItem);
-            });
-        }
-
-        function updateBaskets() {
-            const baskets = [
-                document.getElementById('basket1'),
-                document.getElementById('basket2'),
-                document.getElementById('basket3'),
-                document.getElementById('basket4')
-            ];
-            baskets.forEach(b => b.innerHTML = '');
-            const basketLetters = [[], [], [], []];
-            alphabet.forEach(letter => {
-                const s = stats[letter];
-                if (s.presented > 0) {
-                    const percent = Math.round((s.correct / s.presented) * 100);
-                    let basketIndex;
-                    if (percent <= 20) basketIndex = 0; // Needs Practice
-                    else if (percent <= 50) basketIndex = 1; // Getting Better
-                    else if (percent <= 85) basketIndex = 2; // Almost There
-                    else basketIndex = 3; // Mastered
-                    basketLetters[basketIndex].push({ letter, percent });
-                }
-            });
-            basketLetters.forEach((letters, index) => {
-                letters.sort((a, b) => a.percent - b.percent); // Sort ascending by percent
-                letters.forEach(({ letter }) => {
-                    const item = document.createElement('div');
-                    item.className = 'basket-letter';
-                    item.textContent = letter;
-                    baskets[index].appendChild(item);
-                });
-            });
-        }
-
-        function weightedRandomLetter() {
-            const minPresented = Math.min(...alphabet.map(letter => stats[letter].presented));
-            if (minPresented < 3) {
-                const candidates = alphabet.filter(letter => stats[letter].presented === minPresented);
-                return candidates[Math.floor(Math.random() * candidates.length)];
-            }
-            const bucketProbs = [0.30, 0.30, 0.25, 0.05];
-            const buckets = [[], [], [], []];
-            alphabet.forEach(letter => {
-                const s = stats[letter];
-                const percent = s.presented > 0 ? Math.round((s.correct / s.presented) * 100) : 0;
-                if (percent <= 20) buckets[0].push(letter);
-                else if (percent <= 50) buckets[1].push(letter);
-                else if (percent <= 85) buckets[2].push(letter);
-                else buckets[3].push(letter);
-            });
-            let bucketIndex;
-            const rand = Math.random();
-            let cumulative = 0;
-            for (let i = 0; i < bucketProbs.length; i++) {
-                cumulative += bucketProbs[i];
-                if (rand < cumulative && buckets[i].length > 0) {
-                    bucketIndex = i;
-                    break;
-                }
-            }
-            if (bucketIndex === undefined) return alphabet[Math.floor(Math.random() * alphabet.length)]; // Fallback
-            const selectedBucket = buckets[bucketIndex];
-            return selectedBucket[Math.floor(Math.random() * selectedBucket.length)];
-        }
-
-        function generateQuestion() {
-            currentCapital = weightedRandomLetter();
-            const index = alphabet.indexOf(currentCapital);
-            currentCorrect = smallLetters[index];
-            wrongChoiceMade = false;
-            hasUpdatedStats = false; // Reset for new question
-            document.getElementById('capital').textContent = currentCapital;
-
-            let wrongs = confusers[currentCapital].slice();
-            if (wrongs.length > 3) {
-                wrongs = wrongs.sort(() => 0.5 - Math.random()).slice(0, 3);
-            } else if (wrongs.length < 3) {
-                let allSmall = smallLetters.filter(l => l !== currentCorrect && !wrongs.includes(l));
-                while (wrongs.length < 3) {
-                    const rand = allSmall.splice(Math.floor(Math.random() * allSmall.length), 1)[0];
-                    wrongs.push(rand);
-                }
-            }
-            currentOptions = [currentCorrect, ...wrongs].sort(() => 0.5 - Math.random());
-
-            const optionsDiv = document.getElementById('options');
-            optionsDiv.innerHTML = '';
-            currentOptions.forEach(opt => {
-                const div = document.createElement('div');
-                div.className = 'option';
-                div.textContent = opt;
-                div.onclick = () => handleClick(div, opt);
-                optionsDiv.appendChild(div);
-            });
-
-            updateCounts();
-            updateBaskets();
-        }
-
-        function handleClick(element, selected) {
-            if (selected !== currentCorrect) {
-                if (!hasUpdatedStats) {
-                    wrongChoiceMade = true;
-                    stats[currentCapital].presented++; // Increment on first incorrect
-                    hasUpdatedStats = true; // Prevent further updates
-                    saveStats();
-                    updateBaskets();
-                    updateCounts();
-                }
-                playLose();
-                showRedCross(element);
-                if (document.querySelectorAll('.option').length === 1) {
-                    setTimeout(generateQuestion, 2000); // Match animation duration
-                }
-            } else {
-                const options = document.querySelectorAll('.option');
-                options.forEach(opt => opt.onclick = null); // Disable clicks after correct
-                if (!hasUpdatedStats) {
-                    stats[currentCapital].presented++; // Increment if not already updated
-                    if (!wrongChoiceMade) {
-                        stats[currentCapital].correct++; // Only increment if no wrong choices
-                    }
-                    hasUpdatedStats = true; // Prevent further updates
-                    saveStats();
-                    updateBaskets();
-                    updateCounts();
-                }
-                celebrate(element);
-                setTimeout(generateQuestion, 1000); // Match confetti duration
-            }
-        }
-
-        function playClap() {
-            clapAudio.currentTime = 0; // Reset to start
-            clapAudio.play()
-                .then(() => console.log('Clap audio played successfully:', clapAudio.src))
-                .catch(e => console.error('Clap audio failed to play:', e.message, 'URL:', clapAudio.src));
-            // Fallback to M4A if MP3 fails
-            if (clapAudio.error) {
-                console.warn('Clap MP3 failed, trying M4A fallback');
-                clapAudio.src = 'https://umairnk.github.io/AlphaQuest/applause.m4a?v=1';
-                clapAudio.load();
-                clapAudio.play()
-                    .then(() => console.log('Clap M4A played successfully:', clapAudio.src))
-                    .catch(e => console.error('Clap M4A failed to play:', e.message, 'URL:', clapAudio.src));
-            }
-        }
-
-        function playLose() {
-            loseAudio.currentTime = 0; // Reset to start
-            loseAudio.play()
-                .then(() => console.log('Lose audio played successfully:', loseAudio.src))
-                .catch(e => console.error('Lose audio failed to play:', e.message, 'URL:', loseAudio.src));
-            // Fallback to M4A if MP3 fails
-            if (loseAudio.error) {
-                console.warn('Lose MP3 failed, trying M4A fallback');
-                loseAudio.src = 'https://umairnk.github.io/AlphaQuest/buzzer.m4a?v=1';
-                loseAudio.load();
-                loseAudio.play()
-                    .then(() => console.log('Lose M4A played successfully:', loseAudio.src))
-                    .catch(e => console.error('Lose M4A failed to play:', e.message, 'URL:', loseAudio.src));
-            }
-        }
-
-        function showRedCross(element) {
-            const cross = document.createElement('div');
-            cross.className = 'red-cross';
-            cross.textContent = '✖';
-            element.appendChild(cross); // Append to option element
-            setTimeout(() => element.remove(), 2000); // Remove option and cross together
-        }
-
-        function celebrate(element) {
-            playClap();
-            confetti(element);
-        }
-
-        function confetti(element) {
-            const canvas = document.getElementById('confetti-canvas');
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            const ctx = canvas.getContext('2d');
-            const rect = element.getBoundingClientRect();
-            const centerX = rect.left + rect.width / 2;
-            const centerY = rect.top + rect.height / 2;
-            const particles = [];
-            for (let i = 0; i < 100; i++) {
-                const angle = Math.random() * 2 * Math.PI;
-                const speed = Math.random() * 5 + 2;
-                particles.push({
-                    x: centerX,
-                    y: centerY,
-                    vx: Math.cos(angle) * speed,
-                    vy: Math.sin(angle) * speed,
-                    r: Math.random() * 4 + 1,
-                    color: `hsl(${Math.random() * 360}, 100%, 50%)`,
-                    tilt: Math.random() * 10 - 10,
-                    tiltAngle: 0,
-                    tiltAngleIncrement: Math.random() * 0.07 + 0.05
-                });
-            }
-            const startTime = Date.now();
-            function draw() {
-                if (Date.now() - startTime > 1000) {
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    return;
-                }
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                particles.forEach(p => {
-                    p.x += p.vx;
-                    p.y += p.vy;
-                    p.vy += 0.1; // Gravity effect
-                    p.tiltAngle += p.tiltAngleIncrement;
-                    p.tilt = Math.sin(p.tiltAngle) * 15;
-                    ctx.beginPath();
-                    ctx.lineWidth = p.r;
-                    ctx.strokeStyle = p.color;
-                    ctx.moveTo(p.x + p.tilt + p.r / 4, p.y);
-                    ctx.lineTo(p.x + p.tilt, p.y + p.tilt + p.r / 4);
-                    ctx.stroke();
-                });
-                requestAnimationFrame(draw);
-            }
-            draw();
-        }
-
-        // Preload audio
-        clapAudio.load();
-        loseAudio.load();
-
-        updateCounts();
-        updateBaskets();
-        generateQuestion();
-    </script>
+    updateCounts(); updateBaskets(); generateQuestion();
+  </script>
 </body>
 </html>
