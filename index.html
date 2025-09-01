@@ -65,6 +65,7 @@
             margin: 0;
             padding: 20px;
             box-sizing: border-box;
+            position: relative;
         }
         .capital {
             font-family: 'Comic Neue', Verdana, Arial, Helvetica, sans-serif;
@@ -99,6 +100,7 @@
             cursor: pointer;
             transition: transform 0.3s;
             text-shadow: 1px 1px 2px #add8e6;
+            position: relative;
         }
         .option:hover {
             transform: scale(1.1);
@@ -199,12 +201,17 @@
             font-weight: 400;
             font-size: 100px;
             color: red;
-            animation: fadeOut 1s;
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1000;
+            animation: fadeOut 2s;
             pointer-events: none;
         }
         @keyframes fadeOut {
-            0% { opacity: 1; transform: scale(1); }
-            100% { opacity: 0; transform: scale(2); }
+            0% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(2); }
         }
         .reset-button {
             font-family: 'Comic Neue', Verdana, Arial, Helvetica, sans-serif;
@@ -251,17 +258,26 @@
     </div>
     <button class="reset-button" onclick="resetStats()">Reset Progress</button>
     <canvas id="confetti-canvas" width="300" height="300"></canvas>
-    <audio id="clap" src="/applause.mp3" preload="auto"></audio>
-    <audio id="lose" src="/buzzer.mp3" preload="auto"></audio>
+    <audio id="clap" src="https://umairnk.github.io/AlphaQuest/applause.mp3?v=1" preload="auto"></audio>
+    <audio id="lose" src="https://umairnk.github.io/AlphaQuest/buzzer.mp3?v=1" preload="auto"></audio>
 
     <script>
-        // iOS audio unlock workaround
-        const unlockAudio = () => {
-            const silentSound = new Audio('data:audio/mp3;base64,/+MYxAAAAAgAAAD0AAAAA');
-            silentSound.play().catch(e => console.log('Silent audio unlock failed:', e));
-            document.removeEventListener('touchstart', unlockAudio);
-        };
-        document.addEventListener('touchstart', unlockAudio);
+        // Check audio file accessibility on page load
+        const audioFiles = [
+            'https://umairnk.github.io/AlphaQuest/applause.mp3?v=1',
+            'https://umairnk.github.io/AlphaQuest/buzzer.mp3?v=1'
+        ];
+        audioFiles.forEach(file => {
+            fetch(file, { method: 'HEAD' })
+                .then(response => {
+                    if (response.ok) {
+                        console.log(`Audio file accessible: ${file}`);
+                    } else {
+                        console.error(`Audio file inaccessible: ${file}, Status: ${response.status}`);
+                    }
+                })
+                .catch(e => console.error(`Error checking audio file ${file}:`, e.message));
+        });
 
         const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
         const smallLetters = 'abcdefghijklmnopqrstuvwxyz'.split('');
@@ -455,9 +471,8 @@
                 }
                 playLose();
                 showRedCross(element);
-                element.remove();
                 if (document.querySelectorAll('.option').length === 1) {
-                    setTimeout(generateQuestion, 1000);
+                    setTimeout(generateQuestion, 2000); // Match animation duration
                 }
             } else {
                 const options = document.querySelectorAll('.option');
@@ -478,26 +493,43 @@
         }
 
         function playClap() {
+            clapAudio.currentTime = 0; // Reset to start
             clapAudio.play()
-                .then(() => console.log('Clap audio played successfully'))
-                .catch(e => console.error('Clap audio failed to play:', e));
+                .then(() => console.log('Clap audio played successfully:', clapAudio.src))
+                .catch(e => console.error('Clap audio failed to play:', e.message, 'URL:', clapAudio.src));
+            // Fallback to M4A if MP3 fails
+            if (clapAudio.error) {
+                console.warn('Clap MP3 failed, trying M4A fallback');
+                clapAudio.src = 'https://umairnk.github.io/AlphaQuest/applause.m4a?v=1';
+                clapAudio.load();
+                clapAudio.play()
+                    .then(() => console.log('Clap M4A played successfully:', clapAudio.src))
+                    .catch(e => console.error('Clap M4A failed to play:', e.message, 'URL:', clapAudio.src));
+            }
         }
 
         function playLose() {
+            loseAudio.currentTime = 0; // Reset to start
             loseAudio.play()
-                .then(() => console.log('Lose audio played successfully'))
-                .catch(e => console.error('Lose audio failed to play:', e));
+                .then(() => console.log('Lose audio played successfully:', loseAudio.src))
+                .catch(e => console.error('Lose audio failed to play:', e.message, 'URL:', loseAudio.src));
+            // Fallback to M4A if MP3 fails
+            if (loseAudio.error) {
+                console.warn('Lose MP3 failed, trying M4A fallback');
+                loseAudio.src = 'https://umairnk.github.io/AlphaQuest/buzzer.m4a?v=1';
+                loseAudio.load();
+                loseAudio.play()
+                    .then(() => console.log('Lose M4A played successfully:', loseAudio.src))
+                    .catch(e => console.error('Lose M4A failed to play:', e.message, 'URL:', loseAudio.src));
+            }
         }
 
         function showRedCross(element) {
             const cross = document.createElement('div');
             cross.className = 'red-cross';
             cross.textContent = '✖';
-            const rect = element.getBoundingClientRect();
-            cross.style.left = `${rect.left + rect.width / 2 - 50}px`;
-            cross.style.top = `${rect.top + rect.height / 2 - 50}px`;
-            document.body.appendChild(cross);
-            setTimeout(() => cross.remove(), 1000);
+            element.appendChild(cross); // Append to option element
+            setTimeout(() => element.remove(), 2000); // Remove option and cross together
         }
 
         function celebrate(element) {
@@ -516,7 +548,7 @@
             const particles = [];
             for (let i = 0; i < 100; i++) {
                 const angle = Math.random() * 2 * Math.PI;
-                const speed = Math.random() * 5 + 2; // Random speed for blast
+                const speed = Math.random() * 5 + 2;
                 particles.push({
                     x: centerX,
                     y: centerY,
@@ -554,7 +586,7 @@
             draw();
         }
 
-        // Preload audio to ensure readiness for iOS
+        // Preload audio
         clapAudio.load();
         loseAudio.load();
 
