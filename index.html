@@ -46,8 +46,11 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <meta name="apple-mobile-web-app-title" content="LetterQuest">
     <title>LetterQuest</title>
-    <link rel="icon" type="image/png" href="favicon.png">
-    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="64x64" href="/favicon-64x64.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-180x180.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/apple-touch-icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="/apple-touch-icon-120x120.png">
+    <link rel="manifest" href="/manifest.json">
     <link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@400;700&display=swap" rel="stylesheet">
     <style>
         body {
@@ -248,8 +251,8 @@
     </div>
     <button class="reset-button" onclick="resetStats()">Reset Progress</button>
     <canvas id="confetti-canvas" width="300" height="300"></canvas>
-    <audio id="clap" src="applause.mp3"></audio>
-    <audio id="lose" src="buzzer.mp3"></audio>
+    <audio id="clap" src="/applause.mp3"></audio>
+    <audio id="lose" src="/buzzer.mp3"></audio>
 
     <script>
         const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
@@ -510,7 +513,7 @@
                     r: Math.random() * 4 + 1,
                     color: `hsl(${Math.random() * 360}, 100%, 50%)`,
                     tilt: Math.random() * 10 - 10,
-                    tintAngle: 0,
+                    tiltAngle: 0,
                     tiltAngleIncrement: Math.random() * 0.07 + 0.05
                 });
             }
