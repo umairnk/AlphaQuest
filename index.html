@@ -44,12 +44,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
-    <meta name="apple-mobile-web-app-title" content="LetterQuest">
+    <meta name="apple-mobile-web-app-title" content="AlphaQuest">
     <title>AlphaQuest</title>
-    <link rel="icon" href="favicon.png" type="image/png">
-	<link rel="apple-touch-icon" sizes="180x180" href="favicon.png">
-	<link rel="apple-touch-icon" sizes="152x152" href="favicon.png">
-	<link rel="apple-touch-icon" sizes="120x120" href="favicon.png">
+    <link rel="icon" type="image/png" sizes="64x64" href="/favicon-64x64.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-180x180.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/apple-touch-icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="/apple-touch-icon-120x120.png">
     <link rel="manifest" href="/manifest.json">
     <link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@400;700&display=swap" rel="stylesheet">
     <style>
@@ -251,10 +251,18 @@
     </div>
     <button class="reset-button" onclick="resetStats()">Reset Progress</button>
     <canvas id="confetti-canvas" width="300" height="300"></canvas>
-    <audio id="clap" src="/applause.mp3"></audio>
-    <audio id="lose" src="/buzzer.mp3"></audio>
+    <audio id="clap" src="/applause.mp3" preload="auto"></audio>
+    <audio id="lose" src="/buzzer.mp3" preload="auto"></audio>
 
     <script>
+        // iOS audio unlock workaround
+        const unlockAudio = () => {
+            const silentSound = new Audio('data:audio/mp3;base64,/+MYxAAAAAgAAAD0AAAAA');
+            silentSound.play().catch(e => console.log('Silent audio unlock failed:', e));
+            document.removeEventListener('touchstart', unlockAudio);
+        };
+        document.addEventListener('touchstart', unlockAudio);
+
         const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
         const smallLetters = 'abcdefghijklmnopqrstuvwxyz'.split('');
         const confusers = {
@@ -294,6 +302,10 @@
         });
 
         let currentCapital, currentCorrect, currentOptions, wrongChoiceMade, hasUpdatedStats;
+
+        // Preload audio files
+        const clapAudio = document.getElementById('clap');
+        const loseAudio = document.getElementById('lose');
 
         function saveStats() {
             localStorage.setItem('alphabetStats', JSON.stringify(stats));
@@ -367,13 +379,11 @@
         }
 
         function weightedRandomLetter() {
-            // Check if any letter has presented < 3
             const minPresented = Math.min(...alphabet.map(letter => stats[letter].presented));
             if (minPresented < 3) {
                 const candidates = alphabet.filter(letter => stats[letter].presented === minPresented);
                 return candidates[Math.floor(Math.random() * candidates.length)];
             }
-            // After all letters have presented >= 3, use bucket probabilities
             const bucketProbs = [0.30, 0.30, 0.25, 0.05];
             const buckets = [[], [], [], []];
             alphabet.forEach(letter => {
@@ -468,13 +478,15 @@
         }
 
         function playClap() {
-            const clap = document.getElementById('clap');
-            clap.play().catch(e => console.log('Audio play failed:', e));
+            clapAudio.play()
+                .then(() => console.log('Clap audio played successfully'))
+                .catch(e => console.error('Clap audio failed to play:', e));
         }
 
         function playLose() {
-            const lose = document.getElementById('lose');
-            lose.play().catch(e => console.log('Audio play failed:', e));
+            loseAudio.play()
+                .then(() => console.log('Lose audio played successfully'))
+                .catch(e => console.error('Lose audio failed to play:', e));
         }
 
         function showRedCross(element) {
@@ -541,6 +553,10 @@
             }
             draw();
         }
+
+        // Preload audio to ensure readiness for iOS
+        clapAudio.load();
+        loseAudio.load();
 
         updateCounts();
         updateBaskets();
