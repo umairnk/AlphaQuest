@@ -44,13 +44,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
-    <title>LetterQuest: Alphabet Adventure</title>
+    <meta name="apple-mobile-web-app-title" content="LetterQuest">
+    <title>LetterQuest</title>
     <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
     <link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@400;700&display=swap" rel="stylesheet">
     <style>
         body {
-            font-family: 'Comic Neue', Arial, Helvetica, sans-serif;
+            font-family: 'Comic Neue', Verdana, Arial, Helvetica, sans-serif;
             font-style: normal;
+            font-weight: 400;
             background-color: #f0f8ff;
             display: flex;
             flex-direction: column;
@@ -61,8 +64,10 @@
             box-sizing: border-box;
         }
         .capital {
-            font-size: 150px;
+            font-family: 'Comic Neue', Verdana, Arial, Helvetica, sans-serif;
             font-style: normal;
+            font-weight: 400;
+            font-size: 150px;
             color: #ff4500;
             text-shadow: 2px 2px 4px #ffd700;
             animation: pulse 1s infinite;
@@ -79,8 +84,10 @@
             margin: 20px 0;
         }
         .option {
-            font-size: 100px;
+            font-family: 'Comic Neue', Verdana, Arial, Helvetica, sans-serif;
             font-style: normal;
+            font-weight: 400;
+            font-size: 100px;
             color: #4b0082;
             background-color: #fffacd;
             border: 2px solid #ffd700;
@@ -98,13 +105,25 @@
             flex-wrap: wrap;
             justify-content: center;
             width: 90%;
-            font-size: 20px;
+            font-family: 'Comic Neue', Verdana, Arial, Helvetica, sans-serif;
             font-style: normal;
+            font-weight: 700;
+            font-size: 20px;
             margin: 10px 0;
             color: #228b22;
         }
         .count-item, .percent-item {
+            font-family: 'Comic Neue', Verdana, Arial, Helvetica, sans-serif;
+            font-style: normal;
+            font-weight: 700;
             margin: 5px;
+        }
+        .count-item sub, .percent-item sub {
+            font-family: 'Comic Neue', Verdana, Arial, Helvetica, sans-serif;
+            font-style: normal !important;
+            font-weight: 700;
+            font-size: 14px;
+            vertical-align: sub;
         }
         .baskets {
             display: flex;
@@ -117,8 +136,10 @@
             text-align: center;
         }
         .basket-label {
-            font-size: 18px;
+            font-family: 'Comic Neue', Verdana, Arial, Helvetica, sans-serif;
             font-style: normal;
+            font-weight: 700;
+            font-size: 18px;
             color: #fff;
             background: linear-gradient(45deg, #ff69b4, #ffd700);
             padding: 5px 10px;
@@ -150,8 +171,10 @@
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
         }
         .basket-letter {
-            font-size: 30px;
+            font-family: 'Comic Neue', Verdana, Arial, Helvetica, sans-serif;
             font-style: normal;
+            font-weight: 400;
+            font-size: 30px;
             color: #ff69b4;
             margin: 5px;
             text-shadow: 1px 1px 2px #fff;
@@ -168,9 +191,10 @@
             pointer-events: none;
         }
         .red-cross {
-            position: fixed;
-            font-size: 100px;
+            font-family: 'Comic Neue', Verdana, Arial, Helvetica, sans-serif;
             font-style: normal;
+            font-weight: 400;
+            font-size: 100px;
             color: red;
             animation: fadeOut 1s;
             pointer-events: none;
@@ -180,8 +204,9 @@
             100% { opacity: 0; transform: scale(2); }
         }
         .reset-button {
-            font-family: 'Comic Neue', Arial, Helvetica, sans-serif;
+            font-family: 'Comic Neue', Verdana, Arial, Helvetica, sans-serif;
             font-style: normal;
+            font-weight: 400;
             font-size: 20px;
             color: #fff;
             background: linear-gradient(45deg, #ff69b4, #ffd700);
@@ -485,7 +510,7 @@
                     r: Math.random() * 4 + 1,
                     color: `hsl(${Math.random() * 360}, 100%, 50%)`,
                     tilt: Math.random() * 10 - 10,
-                    tiltAngle: 0,
+                    tintAngle: 0,
                     tiltAngleIncrement: Math.random() * 0.07 + 0.05
                 });
             }
