@@ -89,17 +89,17 @@
         .option:hover {
             transform: scale(1.1);
         }
-        .counts {
+        .counts, .percent-row {
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
             width: 90%;
             font-size: 20px;
-            margin: 20px 0;
-        }
-        .count-item {
-            margin: 5px;
+            margin: 10px 0;
             color: #228b22;
+        }
+        .count-item, .percent-item {
+            margin: 5px;
         }
         .baskets {
             display: flex;
@@ -193,6 +193,7 @@
     <div id="capital" class="capital"></div>
     <div id="options" class="options"></div>
     <div id="counts" class="counts"></div>
+    <div id="percent-row" class="percent-row"></div>
     <div id="baskets" class="baskets">
         <div class="basket-container">
             <div class="basket-label">Needs Practice</div>
@@ -255,7 +256,7 @@
             }
         });
 
-        let currentCapital, currentCorrect, currentOptions, wrongChoiceMade;
+        let currentCapital, currentCorrect, currentOptions, wrongChoiceMade, hasUpdatedStats;
 
         function saveStats() {
             localStorage.setItem('alphabetStats', JSON.stringify(stats));
@@ -278,13 +279,21 @@
 
         function updateCounts() {
             const countsDiv = document.getElementById('counts');
+            const percentDiv = document.getElementById('percent-row');
             countsDiv.innerHTML = '';
+            percentDiv.innerHTML = '';
             alphabet.forEach(letter => {
-                const count = stats[letter].presented;
-                const item = document.createElement('div');
-                item.className = 'count-item';
-                item.innerHTML = `${letter}<sub>${count}</sub>`;
-                countsDiv.appendChild(item);
+                const s = stats[letter];
+                const count = s.presented;
+                const percent = s.presented > 0 ? Math.round((s.correct / s.presented) * 100) : 0;
+                const countItem = document.createElement('div');
+                countItem.className = 'count-item';
+                countItem.innerHTML = `${letter}<sub>${count}</sub>`;
+                countsDiv.appendChild(countItem);
+                const percentItem = document.createElement('div');
+                percentItem.className = 'percent-item';
+                percentItem.innerHTML = `${letter}<sub>${percent}</sub>`;
+                percentDiv.appendChild(percentItem);
             });
         }
 
@@ -302,50 +311,63 @@
                 if (s.presented > 0) {
                     const percent = Math.round((s.correct / s.presented) * 100);
                     let basketIndex;
-                    if (percent <= 10) basketIndex = 0;
-                    else if (percent <= 50) basketIndex = 1;
-                    else if (percent <= 90) basketIndex = 2;
-                    else basketIndex = 3;
+                    if (percent <= 20) basketIndex = 0; // Needs Practice
+                    else if (percent <= 50) basketIndex = 1; // Getting Better
+                    else if (percent <= 85) basketIndex = 2; // Almost There
+                    else basketIndex = 3; // Mastered
                     basketLetters[basketIndex].push({ letter, percent });
                 }
             });
             basketLetters.forEach((letters, index) => {
                 letters.sort((a, b) => a.percent - b.percent); // Sort ascending by percent
-                letters.forEach(({ letter, percent }) => {
+                letters.forEach(({ letter }) => {
                     const item = document.createElement('div');
                     item.className = 'basket-letter';
-                    item.innerHTML = `${letter}<sub>${percent}</sub>`;
+                    item.textContent = letter;
                     baskets[index].appendChild(item);
                 });
             });
         }
 
         function weightedRandomLetter() {
-            const weights = alphabet.map(letter => {
-                const s = stats[letter];
-                if (s.presented === 0) return 1000; // High weight for unpresented
-                const correctRate = s.correct / s.presented;
-                return (1 - correctRate) * 10; // Scale low accuracy higher
-            });
-            const totalWeight = weights.reduce((sum, w) => sum + w, 0);
-            let random = Math.random() * totalWeight;
-            for (let i = 0; i < weights.length; i++) {
-                random -= weights[i];
-                if (random <= 0) return alphabet[i];
+            // Check if any letter has presented < 3
+            const minPresented = Math.min(...alphabet.map(letter => stats[letter].presented));
+            if (minPresented < 3) {
+                const candidates = alphabet.filter(letter => stats[letter].presented === minPresented);
+                return candidates[Math.floor(Math.random() * candidates.length)];
             }
-            return alphabet[alphabet.length - 1]; // Fallback
+            // After all letters have presented >= 3, use bucket probabilities
+            const bucketProbs = [0.30, 0.30, 0.25, 0.05];
+            const buckets = [[], [], [], []];
+            alphabet.forEach(letter => {
+                const s = stats[letter];
+                const percent = s.presented > 0 ? Math.round((s.correct / s.presented) * 100) : 0;
+                if (percent <= 20) buckets[0].push(letter);
+                else if (percent <= 50) buckets[1].push(letter);
+                else if (percent <= 85) buckets[2].push(letter);
+                else buckets[3].push(letter);
+            });
+            let bucketIndex;
+            const rand = Math.random();
+            let cumulative = 0;
+            for (let i = 0; i < bucketProbs.length; i++) {
+                cumulative += bucketProbs[i];
+                if (rand < cumulative && buckets[i].length > 0) {
+                    bucketIndex = i;
+                    break;
+                }
+            }
+            if (bucketIndex === undefined) return alphabet[Math.floor(Math.random() * alphabet.length)]; // Fallback
+            const selectedBucket = buckets[bucketIndex];
+            return selectedBucket[Math.floor(Math.random() * selectedBucket.length)];
         }
 
         function generateQuestion() {
             currentCapital = weightedRandomLetter();
             const index = alphabet.indexOf(currentCapital);
             currentCorrect = smallLetters[index];
-            wrongChoiceMade = false; // Reset for new round
-            stats[currentCapital].presented++;
-            saveStats();
-            updateCounts();
-            updateBaskets();
-
+            wrongChoiceMade = false;
+            hasUpdatedStats = false; // Reset for new question
             document.getElementById('capital').textContent = currentCapital;
 
             let wrongs = confusers[currentCapital].slice();
@@ -369,37 +391,42 @@
                 div.onclick = () => handleClick(div, opt);
                 optionsDiv.appendChild(div);
             });
+
+            updateCounts();
+            updateBaskets();
         }
 
         function handleClick(element, selected) {
             if (selected !== currentCorrect) {
-                wrongChoiceMade = true; // Mark the round as failed
+                if (!hasUpdatedStats) {
+                    wrongChoiceMade = true;
+                    stats[currentCapital].presented++; // Increment on first incorrect
+                    hasUpdatedStats = true; // Prevent further updates
+                    saveStats();
+                    updateBaskets();
+                    updateCounts();
+                }
                 playLose();
                 showRedCross(element);
                 element.remove();
-                updateBaskets(); // Update immediately after incorrect
                 if (document.querySelectorAll('.option').length === 1) {
-                    // Last option remains; end round without incrementing correct
                     setTimeout(generateQuestion, 1000);
                 }
             } else {
-                const visible = document.querySelectorAll('.option').length;
-                if (visible > 1) {
+                const options = document.querySelectorAll('.option');
+                options.forEach(opt => opt.onclick = null); // Disable clicks after correct
+                if (!hasUpdatedStats) {
+                    stats[currentCapital].presented++; // Increment if not already updated
                     if (!wrongChoiceMade) {
                         stats[currentCapital].correct++; // Only increment if no wrong choices
                     }
+                    hasUpdatedStats = true; // Prevent further updates
                     saveStats();
-                    celebrate();
-                    updateBaskets(); // Update immediately after correct
-                    setTimeout(generateQuestion, 2000);
-                } else {
-                    if (!wrongChoiceMade) {
-                        stats[currentCapital].correct++; // Only increment if no wrong choices
-                    }
-                    saveStats();
-                    updateBaskets(); // Update immediately after correct
-                    generateQuestion();
+                    updateBaskets();
+                    updateCounts();
                 }
+                celebrate(element);
+                setTimeout(generateQuestion, 1000); // Match confetti duration
             }
         }
 
@@ -424,23 +451,29 @@
             setTimeout(() => cross.remove(), 1000);
         }
 
-        function celebrate() {
+        function celebrate(element) {
             playClap();
-            confetti();
+            confetti(element);
         }
 
-        function confetti() {
+        function confetti(element) {
             const canvas = document.getElementById('confetti-canvas');
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
             const ctx = canvas.getContext('2d');
+            const rect = element.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
             const particles = [];
             for (let i = 0; i < 100; i++) {
+                const angle = Math.random() * 2 * Math.PI;
+                const speed = Math.random() * 5 + 2; // Random speed for blast
                 particles.push({
-                    x: Math.random() * canvas.width,
-                    y: Math.random() * canvas.height - canvas.height,
+                    x: centerX,
+                    y: centerY,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
                     r: Math.random() * 4 + 1,
-                    d: Math.random() * 100,
                     color: `hsl(${Math.random() * 360}, 100%, 50%)`,
                     tilt: Math.random() * 10 - 10,
                     tiltAngle: 0,
@@ -455,8 +488,10 @@
                 }
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 particles.forEach(p => {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.vy += 0.1; // Gravity effect
                     p.tiltAngle += p.tiltAngleIncrement;
-                    p.y += (Math.cos(p.d) + 3 + p.r / 2) / 2;
                     p.tilt = Math.sin(p.tiltAngle) * 15;
                     ctx.beginPath();
                     ctx.lineWidth = p.r;
