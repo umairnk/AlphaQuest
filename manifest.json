@@ -3,7 +3,7 @@
   "short_name": "AlphaQuest",
   "icons": [
     {
-      "src": "favicon-64x64.png",
+      "src": "favicon.png",
       "sizes": "1024x1024",
       "type": "image/png"
     }
